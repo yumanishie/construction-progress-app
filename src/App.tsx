@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Layout, X, Edit3, CheckCircle2, Trash2 } from 'lucide-react';
 
 interface Progress {
@@ -22,11 +22,32 @@ const DEFAULT_TASKS = [
   { task: 'クリーニング', workerDone: false, managerDone: false },
 ];
 
+// LocalStorageのキー名
+const STORAGE_KEY = 'construction-progress-data';
+
 function App() {
-  const [rooms, setRooms] = useState<Room[]>([]);
+  // 1. 初期化時にLocalStorageからデータを読み込む
+  const [rooms, setRooms] = useState<Room[]>(() => {
+    const savedData = localStorage.getItem(STORAGE_KEY);
+    if (savedData) {
+      try {
+        return JSON.parse(savedData);
+      } catch (e) {
+        console.error("Failed to parse localStorage data", e);
+        return [];
+      }
+    }
+    return [];
+  });
+
   const [draggingId, setDraggingId] = useState<number | null>(null);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [selectedRoomId, setSelectedRoomId] = useState<number | null>(null);
+
+  // 2. roomsの状態が変化するたびにLocalStorageに保存する
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(rooms));
+  }, [rooms]);
 
   // 部屋を追加
   const addRoom = () => {
@@ -56,7 +77,7 @@ function App() {
     ));
   };
 
-  // 進捗・工程名の更新（ここが重要！）
+  // 進捗・工程名の更新
   const updateProgress = (roomId: number, taskIndex: number, updates: Partial<Progress>) => {
     setRooms(rooms.map(room => {
       if (room.id === roomId) {
@@ -78,6 +99,14 @@ function App() {
     }));
   };
 
+  // 部屋の削除機能（メンテナンス用に便利なので追加）
+  const deleteRoom = (id: number) => {
+    if (window.confirm('この部屋を削除してもよろしいですか？')) {
+      setRooms(rooms.filter(r => r.id !== id));
+      if (selectedRoomId === id) setSelectedRoomId(null);
+    }
+  };
+
   const selectedRoom = rooms.find(r => r.id === selectedRoomId);
 
   return (
@@ -91,8 +120,9 @@ function App() {
           <Plus size={20} /> 部屋を追加
         </button>
         <div className="mt-10 text-xs text-gray-400">
-          <p>部屋をクリックして詳細を編集</p>
-          <p>ドラッグで位置を自由に変更</p>
+          <p>・部屋をクリックして詳細を編集</p>
+          <p>・ドラッグで位置を自由に変更</p>
+          <p>・データはブラウザに自動保存されます</p>
         </div>
       </div>
 
@@ -163,13 +193,22 @@ function App() {
             </button>
           </div>
           
-          <div style={{ marginTop: '30px', padding: '15px', backgroundColor: '#eff6ff', borderRadius: '10px', border: '1px solid #bfdbfe' }}>
-            <h4 style={{ margin: 0, fontSize: '14px', color: '#1e40af', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <CheckCircle2 size={16} /> 進捗ステータス
-            </h4>
-            <p style={{ fontSize: '12px', color: '#3b82f6', marginTop: '5px' }}>
-                全 {selectedRoom.progress.length} 工程中、{selectedRoom.progress.filter(p => p.managerDone).length} 工程が完了しています。
-            </p>
+          <div style={{ marginTop: '20px', borderTop: '1px solid #eee', paddingTop: '20px' }}>
+            <div style={{ padding: '15px', backgroundColor: '#eff6ff', borderRadius: '10px', border: '1px solid #bfdbfe', marginBottom: '15px' }}>
+              <h4 style={{ margin: 0, fontSize: '14px', color: '#1e40af', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <CheckCircle2 size={16} /> 進捗ステータス
+              </h4>
+              <p style={{ fontSize: '12px', color: '#3b82f6', marginTop: '5px' }}>
+                  全 {selectedRoom.progress.length} 工程中、{selectedRoom.progress.filter(p => p.managerDone).length} 工程が完了しています。
+              </p>
+            </div>
+            
+            <button 
+              onClick={() => deleteRoom(selectedRoom.id)}
+              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px', color: '#ef4444', backgroundColor: '#fef2f2', border: '1px solid #fee2e2', borderRadius: '8px', cursor: 'pointer' }}
+            >
+              <Trash2 size={16} /> 部屋を削除する
+            </button>
           </div>
         </div>
       )}
